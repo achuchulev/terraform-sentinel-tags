@@ -1,7 +1,6 @@
 # Policy uses tfplan/v2 to require specified TFE resources to have mandatory tags (hard)
 
 import "workspace-functions" as wks
-import "tfplan/v2" as tfplan2
 
 # List of default mandatory tags
 param required_tags_hard default [
