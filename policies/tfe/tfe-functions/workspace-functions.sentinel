@@ -1,0 +1,33 @@
+# Workspace functions for use with the TFE provider
+
+import "tfplan-functions" as tfplanfunctions
+import "common-functions" as commonfunctions
+import "tfe-functions" as tfefunctions
+
+### filter_workspace_resources
+# Filter all TFE managed workspace resources
+filter_resources = func() {
+	return tfefunctions.filter_managed_resources("tfe_workspace")
+}
+
+### filter_resource_tags_changed
+# Filter all all tfe_workspace resources that are changed
+filter_resource_tags_changed = func() {
+	return commonfunctions.filter_resources_changed(filter_resources())
+}
+
+### find_resources_required_tags
+# Find all tfe_workspaces missing the required tags
+find_resources_required_tags = func(required_tags) {
+	wks_tags = filter_resource_tags_changed()
+
+	return commonfunctions.find_attr_condition(wks_tags, "change.after.tag_names", commonfunctions.check_tags, required_tags, true)
+}
+
+### find_resources_required_tags_prefix
+# Find all tfe_workspaces missing the required tag prefixes
+find_resources_required_tags_prefix = func(required_tags) {
+	wks_tags = filter_resource_tags_changed()
+
+	return commonfunctions.find_attr_condition(wks_tags, "change.after.tag_names", commonfunctions.check_tags_prefix, required_tags, true)
+}
