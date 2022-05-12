@@ -1,0 +1,15 @@
+# Policy uses tfplan/v2 to require specified TFE resources to have mandatory tags (hard)
+
+import "workspace-functions" as wks
+
+# List of default mandatory tags
+param required_tags_hard default [
+	"application",
+]
+
+violating_resources = wks.find_resources_required_tags_prefix(required_tags_hard)
+
+# Main rule
+main = rule {
+	length(violating_resources["messages"]) is 0
+}
