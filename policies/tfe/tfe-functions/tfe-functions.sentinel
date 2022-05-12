@@ -1,0 +1,22 @@
+# Common functions for use with the TFE provider
+
+import "tfplan/v2" as tfplan2
+import "common-functions" as commonfunctions
+
+### get_resource_attribute
+# Get attribute for a map of given resources
+get_resource_attribute = func(resources, attr) {
+	out = {}
+
+	for resources as address, r {
+		out[address] = commonfunctions.evaluate_attribute(r, attr) else null
+	}
+
+	return out
+}
+
+### filter_managed_resources
+#
+filter_managed_resources = func(resource_types) {
+	return commonfunctions.filter_managed_provider_resources(tfplan2.resource_changes, "tfe", resource_types)
+}
