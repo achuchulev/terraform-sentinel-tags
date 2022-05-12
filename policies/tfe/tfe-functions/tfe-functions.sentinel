@@ -17,8 +17,8 @@ get_resource_attribute = func(resources, attr) {
 
 ### filter_managed_resources
 #
-foo = tfplan2.resource_changes
+changes = tfplan2.resource_changes
 
 filter_managed_resources = func(resource_types) {
-	return commonfunctions.filter_managed_provider_resources(foo, "tfe", resource_types)
+	return commonfunctions.filter_managed_provider_resources(changes, "tfe", resource_types)
 }
