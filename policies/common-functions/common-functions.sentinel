@@ -1,0 +1,126 @@
+# Common functions for use with the any provider resources
+
+import "strings"
+import "json"
+import "types"
+
+### to_string
+# Convert JSON object to a string unless already a string
+to_string = func(obj) {
+	if types.type_of(obj) == "string" {
+		return obj
+	}
+
+	return json.marshal(obj)
+}
+
+### check_tags
+# Check all required tags are in tags array
+check_tags = func(address, tags, required_tags) {
+	missing_tags = []
+
+	for required_tags as required_tag {
+		if required_tag not in tags {
+			append(missing_tags, required_tag)
+		}
+	}
+
+	if length(missing_tags) is 0 {
+		return null
+	} else {
+		return strings.join([address, "does not have required tag(s):", to_string(missing_tags)], " ")
+	}
+}
+
+### check_tags_prefix
+# Check all required tag prefixes (colon separated) are in tags array
+check_tags_prefix = func(address, tags, required_tags) {
+	# Get prefixes of all tags
+	tags = map tags as t { strings.split(t, ":")[0] }
+
+	return check_tags(address, tags, required_tags)
+}
+
+### evaluate_attribute
+# Evaluates the value of a resource's or block's attribute even if nested.
+# Indices of lists should be given as 0, 1, 2, and so on.
+# For example: change.after.boot_disk.0.initialize_params.0.image
+evaluate_attribute = func(r, attribute) {
+	# Split the attribute into a list, using "." as the separator
+	attributes = strings.split(attribute, ".")
+	key = attributes[0]
+
+	# Convert numeric strings to integers for indices
+	if key matches "^[0-9]+$" {
+		key = int(key)
+
+		# Make sure r is of type list
+		if types.type_of(r) is not "list" {
+			return undefined
+		}
+	}
+
+	# Value of attribute at current level
+	value = r[key] else null
+
+	# Recurse if lower attribute level requested
+	if length(attributes) > 1 {
+		# Convert list back into a string for next recursion level
+		attribute = strings.join(attributes[1:length(attributes)], ".")
+
+		return evaluate_attribute(value, attribute)
+	}
+
+	# Maximum depth, end recursion
+	return value
+}
+
+### find_attr_condition
+# Find attributes violating a condition using a callback for logic
+find_attr_condition = func(resources, attribute, condition_callback, callback_extra_args, prtmsg) {
+	violators = {}
+	messages = {}
+	for resources as address, rc {
+		# Evaluate the value (v) of the attribute
+		v = evaluate_attribute(rc, attribute) else null
+
+		# Execute condition callback to check for violations
+		message = condition_callback(address, v, callback_extra_args)
+
+		# Check if the value is null
+		if message is not null {
+			violators[address] = rc
+			messages[address] = message
+			if prtmsg {
+				print(message)
+			}
+		}
+	}
+	return {"resources": violators, "messages": messages}
+}
+
+### filter_resources_changed
+# Filter only resources that are being created or changed
+filter_resources_changed = func(resources) {
+	return filter resources as address, r {
+		r.change.actions contains "create" or r.change.actions contains "update"
+	}
+}
+
+### filter_provider_resources
+# Filter managed resources by matching provider name
+filter_managed_provider_resources = func(resources, provider, resource_types) {
+	# Regex to match provider attribute
+	provider_match = "(.*)/" + provider + "$"
+
+	# Filter resources
+	return filter resources as address, r {
+		r.provider_name matches provider_match and
+			r.type in resource_types and
+			r.mode is "managed" and
+			(r.change.actions contains "create" or
+				r.change.actions contains "update" or
+				r.change.actions contains "read" or
+				r.change.actions contains "no-op")
+	}
+}
